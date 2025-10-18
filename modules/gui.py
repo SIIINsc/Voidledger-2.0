@@ -62,6 +62,10 @@ class GUI():
         self.kill_history_entries = []
         self.star_citizen_log_widget = None
         self.star_citizen_log_entries = []
+        self.star_citizen_summary_widgets = {}
+        self.pvp_summary_data = {}
+        self.summary_fonts = {}
+        self.mode_display_names = {"PU": "Persistent Universe", "AC": "Arena Commander"}
         self._updating_volume_slider = False
         self._pending_volume_percent = None
         self._pending_icon_warnings = []
@@ -490,11 +494,179 @@ class GUI():
         if self.log:
             self.log.info(f"Main Log, Volume set to {normalized:.2f}")
     def update_vehicle_status(self, text):
-        if hasattr(self, 'vehicle_status_label') and self.vehicle_status_label.winfo_exists(): self.vehicle_status_label.config(text=f"Vehicle (ship): {text}")
+        if hasattr(self, 'vehicle_status_label') and self.vehicle_status_label.winfo_exists():
+            self.vehicle_status_label.config(text=f"Current Vehicle: {text}", fg="#B0B0B0")
+
     def update_deaths(self, count):
-        if hasattr(self, 'session_deaths_label'): self.session_deaths_label.config(text=f"Deaths: {count}")
+        if hasattr(self, 'session_deaths_label') and self.session_deaths_label.winfo_exists():
+            self.session_deaths_label.config(text=f"Session Deaths: {count}", fg="#f44747")
+
     def update_kd(self, ratio):
-        if hasattr(self, 'kd_ratio_label'): self.kd_ratio_label.config(text=f"K/D: {ratio:.2f}")
+        if hasattr(self, 'kd_ratio_label') and self.kd_ratio_label.winfo_exists():
+            self.kd_ratio_label.config(text=f"K/D Ratio: {ratio:.2f}", fg="#FFD700")
+
+    def _reset_pvp_summary_data(self):
+        self.pvp_summary_data = {mode: {"kills": {}, "deaths": {}} for mode in self.mode_display_names}
+
+    def _create_summary_text_widget(self, parent, category):
+        widget = tk.Text(
+            parent,
+            wrap=tk.WORD,
+            height=3,
+            state=tk.DISABLED,
+            bg=self.colors['bg_mid'],
+            fg=self.colors['text'],
+            font=("Segoe UI", 9),
+            relief=tk.FLAT,
+            cursor="arrow",
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        widget.configure(spacing1=2, spacing3=2)
+
+        if category == "kills":
+            widget.tag_configure("kill_name", foreground="#32CD32", font=self.summary_fonts["name"])
+            widget.tag_configure("kill_counter", foreground="#FFFFFF", font=self.summary_fonts["counter"])
+        else:
+            widget.tag_configure("death_name", foreground=self.colors['error'], font=self.summary_fonts["name"])
+            widget.tag_configure("death_counter", foreground="#FFFFFF", font=self.summary_fonts["counter"])
+
+        widget.tag_configure("placeholder", foreground=self.colors['text_dark'], font=self.summary_fonts["counter"])
+        return widget
+
+    def _initialize_star_citizen_summary_ui(self, parent):
+        self.summary_fonts = {
+            "name": font.Font(parent, family="Segoe UI", size=9, weight="bold"),
+            "counter": font.Font(parent, family="Segoe UI", size=9),
+        }
+
+        self._reset_pvp_summary_data()
+        self.star_citizen_summary_widgets = {}
+
+        summary_container = tk.Frame(parent, bg=self.colors['bg_dark'])
+        summary_container.pack(fill=tk.X, pady=(0, 8))
+
+        for idx in range(len(self.mode_display_names)):
+            summary_container.grid_columnconfigure(idx, weight=1)
+
+        for column_index, mode_key in enumerate(self.mode_display_names.keys()):
+            section_frame = tk.Frame(summary_container, bg=self.colors['bg_dark'])
+            section_frame.grid(row=0, column=column_index, sticky="nsew", padx=4)
+
+            header_row = tk.Frame(section_frame, bg=self.colors['bg_dark'])
+            header_row.pack(fill=tk.X)
+
+            title_label = tk.Label(
+                header_row,
+                text=self.mode_display_names[mode_key],
+                font=("Segoe UI", 9, "bold"),
+                fg="#FFFFFF",
+                bg=self.colors['bg_dark'],
+            )
+            title_label.pack(side=tk.LEFT)
+
+            clear_button = tk.Button(
+                header_row,
+                text="Clear",
+                command=lambda m=mode_key: self._clear_summary_mode(m),
+                font=("Segoe UI", 8, "bold"),
+                bg=self.colors['bg_light'],
+                fg="#FFFFFF",
+                relief=tk.FLAT,
+                padx=8,
+                pady=2,
+                activebackground=self.colors['accent'],
+                activeforeground="#FFFFFF",
+                cursor="hand2",
+            )
+            clear_button.pack(side=tk.RIGHT)
+
+            kills_label = tk.Label(
+                section_frame,
+                text="You killed",
+                font=("Segoe UI", 9, "bold"),
+                fg=self.colors['submit_button'],
+                bg=self.colors['bg_dark'],
+            )
+            kills_label.pack(anchor="w", pady=(6, 0))
+
+            kills_widget = self._create_summary_text_widget(section_frame, "kills")
+            kills_widget.pack(fill=tk.X, pady=(2, 4))
+
+            deaths_label = tk.Label(
+                section_frame,
+                text="Killed you",
+                font=("Segoe UI", 9, "bold"),
+                fg=self.colors['error'],
+                bg=self.colors['bg_dark'],
+            )
+            deaths_label.pack(anchor="w", pady=(4, 0))
+
+            deaths_widget = self._create_summary_text_widget(section_frame, "deaths")
+            deaths_widget.pack(fill=tk.X, pady=(2, 4))
+
+            self.star_citizen_summary_widgets[mode_key] = {
+                "kills": kills_widget,
+                "deaths": deaths_widget,
+            }
+
+            self._update_summary_display(mode_key)
+
+    def _clear_summary_mode(self, mode_key):
+        if mode_key not in self.pvp_summary_data:
+            return
+        self.pvp_summary_data[mode_key]["kills"].clear()
+        self.pvp_summary_data[mode_key]["deaths"].clear()
+        self._update_summary_display(mode_key)
+
+    def _update_summary_display(self, mode_key, category=None):
+        if mode_key not in self.star_citizen_summary_widgets:
+            return
+
+        categories = [category] if category else ("kills", "deaths")
+        for cat in categories:
+            widget = self.star_citizen_summary_widgets[mode_key].get(cat)
+            if not widget or not widget.winfo_exists():
+                continue
+
+            widget.config(state=tk.NORMAL)
+            widget.delete("1.0", tk.END)
+
+            entries = self.pvp_summary_data.get(mode_key, {}).get(cat, {})
+            if entries:
+                name_tag = "kill_name" if cat == "kills" else "death_name"
+                counter_tag = "kill_counter" if cat == "kills" else "death_counter"
+                for index, (name, count) in enumerate(entries.items()):
+                    if index > 0:
+                        widget.insert(tk.END, "  ")
+                    widget.insert(tk.END, name, (name_tag,))
+                    if count > 1:
+                        widget.insert(tk.END, f"[x{count}]", (counter_tag,))
+            else:
+                widget.insert(tk.END, "—", ("placeholder",))
+
+            widget.config(state=tk.DISABLED)
+
+    def _record_pvp_summary(self, mode_key, category, name):
+        if not name:
+            return
+
+        normalized_name = name.strip()
+        if not normalized_name:
+            return
+
+        if mode_key not in self.pvp_summary_data:
+            self.pvp_summary_data[mode_key] = {"kills": {}, "deaths": {}}
+
+        counts = self.pvp_summary_data[mode_key].setdefault(category, {})
+        counts[normalized_name] = counts.get(normalized_name, 0) + 1
+        self._update_summary_display(mode_key, category)
+
+    def _normalize_mode_key(self, game_mode):
+        normalized_mode = (game_mode or "").upper()
+        if "SC_DEFAULT" in normalized_mode:
+            return "PU"
+        return "AC"
 
     def _configure_star_citizen_log_tags(self, widget):
         """Configure tags for the combined Star Citizen kill tracker."""
@@ -539,25 +711,43 @@ class GUI():
         widget.config(state=tk.DISABLED)
         widget.see(tk.END)
 
-    def log_mode_kill(self, game_mode, timestamp, description, tag):
-        """Append a kill or death entry to the combined Star Citizen log."""
+    def log_mode_kill(self, game_mode, timestamp, description, tag, killer=None, victim=None, context=None):
+        """Append a kill or death entry to the combined Star Citizen log and summary."""
         widget = self.star_citizen_log_widget
         if not widget or not widget.winfo_exists():
             return
 
-        normalized_mode = (game_mode or "").upper()
-        prefix = "[PU]" if "SC_DEFAULT" in normalized_mode else "[AC]"
+        mode_key = self._normalize_mode_key(game_mode)
+        prefix = "[PU]" if mode_key == "PU" else "[AC]"
         display_time = timestamp or datetime.now().strftime("%H:%M:%S")
 
-        segments = []
+        context_value = (context or (tag if tag else "")).lower()
+        if not context_value:
+            context_value = "pvp" if tag in {"kill", "death"} else tag
+        if tag in {"kill", "death"} and context_value not in {"pvp", "environment", "collision", "suicide"}:
+            context_value = "pvp"
+
+        if tag == "suicide" and mode_key == "PU":
+            return
+
+        message_text = description or ""
         custom_body_tag = None
 
-        lower_description = description.lower()
+        if tag == "death":
+            if context_value == "environment":
+                message_text = "NPC/Game Environment"
+                custom_body_tag = "death_body"
+            elif context_value == "collision":
+                message_text = "Collision"
+                custom_body_tag = "death_body"
 
-        if tag == "death" and " killed you" in lower_description:
-            killed_you_index = lower_description.index(" killed you")
-            killer_text = description[:killed_you_index].strip()
-            remainder = description[killed_you_index:]
+        segments = []
+        lower_text = message_text.lower()
+
+        if tag == "death" and context_value == "pvp" and " killed you" in lower_text:
+            killed_you_index = lower_text.index(" killed you")
+            killer_text = message_text[:killed_you_index].strip()
+            remainder = message_text[killed_you_index:]
 
             segments.append((killer_text, "bold"))
 
@@ -575,8 +765,8 @@ class GUI():
 
             custom_body_tag = "siiin_death_body"
 
-        elif tag == "death" and lower_description.startswith("you got killed by "):
-            details = description[len("You got killed by ") :]
+        elif tag == "death" and context_value == "pvp" and lower_text.startswith("you got killed by "):
+            details = message_text[len("You got killed by ") :]
             killer_text = details
             weapon_text = ""
             connector = ", using "
@@ -592,20 +782,20 @@ class GUI():
                 segments.append((weapon_text.strip(), None))
             custom_body_tag = "siiin_death_body"
 
-        elif tag == "kill" and lower_description.startswith("you killed "):
-            details = description[len("You killed ") :]
-            victim = details.split(" with ")[0].strip()
+        elif tag == "kill" and lower_text.startswith("you killed "):
+            details = message_text[len("You killed ") :]
+            victim_text = details.split(" with ")[0].strip()
             weapon_text = ""
             if " with " in details:
                 _, weapon_text = details.split(" with ", 1)
                 weapon_text = weapon_text.strip()
             segments.append(("You killed ", None))
-            segments.append((victim, "bold"))
+            segments.append((victim_text, "bold"))
             if weapon_text:
                 segments.append((" with ", None))
                 segments.append((weapon_text, None))
         else:
-            segments.append((description, None))
+            segments.append((message_text, None))
 
         entry = {
             "prefix": prefix,
@@ -622,6 +812,12 @@ class GUI():
             self.star_citizen_log_entries.pop(0)
 
         self._render_star_citizen_log()
+
+        if context_value == "pvp":
+            if tag == "kill":
+                self._record_pvp_summary(mode_key, "kills", victim)
+            elif tag == "death":
+                self._record_pvp_summary(mode_key, "deaths", killer)
 
     def _load_and_populate_mappings(self):
         self.log.info("Loading ship and weapon mappings...")
@@ -682,9 +878,11 @@ class GUI():
             if self.log:
                 self.log.info(f"Injecting kill: {killer_h} -> {victim_h}")
 
+            self_handle = None
             normalized_self = ""
             if self.api and getattr(self.api, "rsi_handle", None):
-                normalized_self = (self.api.rsi_handle.get("current") or "").strip().lower()
+                self_handle = self.api.rsi_handle.get("current")
+                normalized_self = (self_handle or "").strip().lower()
 
             killer_h_normalized = killer_h.strip().lower()
             victim_h_normalized = victim_h.strip().lower()
@@ -709,6 +907,9 @@ class GUI():
                         timestamp_display,
                         death_message,
                         "death",
+                        killer=killer_h,
+                        victim=self_handle,
+                        context="pvp",
                     )
                     if self.sounds:
                         self.sounds.play_death_sound()
@@ -718,6 +919,9 @@ class GUI():
                         timestamp_display,
                         f"You killed {victim_h} with {weapon_display}",
                         "kill",
+                        killer=self_handle,
+                        victim=victim_h,
+                        context="pvp",
                     )
                     if self.sounds:
                         self.sounds.play_kill_sound()
@@ -761,15 +965,6 @@ class GUI():
         except tk.TclError: print("Icon not found.")
         self._load_emoji_assets()
         main_frame = tk.Frame(self.app, bg=self.colors['bg_dark'], padx=10, pady=10); main_frame.pack(fill=tk.BOTH, expand=True)
-        stats_frame = tk.Frame(main_frame, bg=self.colors['bg_dark']); stats_frame.pack(fill=tk.X, pady=(0, 5)); stats_frame.grid_columnconfigure(tuple(range(5)), weight=1)
-        stat_font = ("Segoe UI", 10, "bold")
-        self.session_kills_label = tk.Label(stats_frame, text="Kills: 0", font=stat_font, bg=self.colors['bg_dark'], fg=self.colors['text']); self.session_kills_label.grid(row=0, column=0)
-        self.session_deaths_label = tk.Label(stats_frame, text="Deaths: 0", font=stat_font, bg=self.colors['bg_dark'], fg=self.colors['text']); self.session_deaths_label.grid(row=0, column=1)
-        self.kd_ratio_label = tk.Label(stats_frame, text="K/D: 0.00", font=stat_font, bg=self.colors['bg_dark'], fg=self.colors['text']); self.kd_ratio_label.grid(row=0, column=2)
-        self.curr_killstreak_label = tk.Label(stats_frame, text="Streak: 0", font=stat_font, bg=self.colors['bg_dark'], fg=self.colors['text']); self.curr_killstreak_label.grid(row=0, column=3)
-        self.max_killstreak_label = tk.Label(stats_frame, text="Max Streak: 0", font=stat_font, bg=self.colors['bg_dark'], fg=self.colors['text']); self.max_killstreak_label.grid(row=0, column=4)
-        self.vehicle_status_label = tk.Label(stats_frame, text="Vehicle: Inactive", font=("Segoe UI", 9, "italic"), bg=self.colors['bg_dark'], fg=self.colors['text_dark']); self.vehicle_status_label.grid(row=1, column=0, columnspan=5, sticky="ew", pady=(5,0))
-        
         history_frame = tk.LabelFrame(
             main_frame,
             bg=self.colors['bg_dark'],
@@ -834,6 +1029,72 @@ class GUI():
             padx=4
         )
         star_citizen_frame.configure(labelwidget=star_citizen_label)
+
+        stat_font = ("Segoe UI", 9, "bold")
+        stats_header = tk.Frame(star_citizen_frame, bg=self.colors['bg_dark'])
+        stats_header.pack(fill=tk.X, pady=(0, 8))
+
+        stats_inner = tk.Frame(stats_header, bg=self.colors['bg_mid'], padx=6, pady=6)
+        stats_inner.pack(fill=tk.X)
+
+        for idx in range(5):
+            stats_inner.grid_columnconfigure(idx, weight=1)
+
+        self.session_kills_label = tk.Label(
+            stats_inner,
+            text="Total Session Kills: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#04B431",
+        )
+        self.session_kills_label.grid(row=0, column=0, sticky="w", padx=4)
+
+        self.session_deaths_label = tk.Label(
+            stats_inner,
+            text="Session Deaths: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#f44747",
+        )
+        self.session_deaths_label.grid(row=0, column=1, sticky="w", padx=4)
+
+        self.kd_ratio_label = tk.Label(
+            stats_inner,
+            text="K/D Ratio: --",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#FFD700",
+        )
+        self.kd_ratio_label.grid(row=0, column=2, sticky="w", padx=4)
+
+        self.curr_killstreak_label = tk.Label(
+            stats_inner,
+            text="Kill Streak: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#FFA500",
+        )
+        self.curr_killstreak_label.grid(row=0, column=3, sticky="w", padx=4)
+
+        self.max_killstreak_label = tk.Label(
+            stats_inner,
+            text="Max Kill Streak: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#00FF7F",
+        )
+        self.max_killstreak_label.grid(row=0, column=4, sticky="w", padx=4)
+
+        self.vehicle_status_label = tk.Label(
+            stats_inner,
+            text="Current Vehicle: Inactive",
+            font=("Segoe UI", 9, "italic"),
+            bg=self.colors['bg_mid'],
+            fg="#B0B0B0",
+        )
+        self.vehicle_status_label.grid(row=1, column=0, columnspan=5, sticky="w", padx=4, pady=(6, 0))
+
+        self._initialize_star_citizen_summary_ui(star_citizen_frame)
 
         self.star_citizen_log_widget = scrolledtext.ScrolledText(
             star_citizen_frame,
