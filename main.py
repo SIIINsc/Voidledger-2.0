@@ -218,12 +218,16 @@ def main():
     except Exception as e:
         print(f"main(): ERROR in setting up the Commander Mode Core module: {e.__class__.__name__} {e}")
 
+    log_parser_module = None
     try:
         log_parser_module = LogParser(
             gui_module, api_client_module, sound_module, cm_module, kt.local_version, kt.monitoring, kt.rsi_handle, kt.player_geid, kt.active_ship, kt.anonymize_state
         )
     except Exception as e:
         print(f"main(): ERROR in setting up the Log Parser module: {e.__class__.__name__} {e}")
+
+    if log_parser_module is not None:
+        gui_module.log_parser = log_parser_module
 
     try:
         game_running = kt.is_game_running()
