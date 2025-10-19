@@ -230,7 +230,10 @@ class LogParser():
                     return
                 # Log a message for the current user's death
                 elif kill_result["result"] == "killed" or kill_result["result"] == "suicide":
-                    self.handle_player_death()
+                    self.curr_killstreak = 0
+                    self.gui.curr_killstreak_label.config(text=f"Kill Streak: {self.curr_killstreak}", fg="#FFA500")
+                    self.death_total += 1
+                    self.gui.session_deaths_label.config(text=f"Session Deaths: {self.death_total}", fg="#f44747")
                     self.log.info("You have fallen in the service of BlightVeil.")
                     if kill_result["result"] == "killed":
                         killer_name = kill_result["data"]["killer"]
@@ -280,7 +283,13 @@ class LogParser():
                         self.api.post_kill_event(death_result, "reportACKill")
                 # Log a message for the current user's kill
                 elif kill_result["result"] == "killer":
-                    self.handle_player_kill()
+                    self.curr_killstreak += 1
+                    if self.curr_killstreak > self.max_killstreak:
+                        self.max_killstreak = self.curr_killstreak
+                    self.kill_total += 1
+                    self.gui.curr_killstreak_label.config(text=f"Kill Streak: {self.curr_killstreak}", fg="#FFA500")
+                    self.gui.max_killstreak_label.config(text=f"Max Kill Streak: {self.max_killstreak}", fg="#00FF7F")
+                    self.gui.session_kills_label.config(text=f"Total Session Kills: {self.kill_total}", fg="#04B431")
                     self.log.success(f"You have killed {kill_result['data']['victim']},")
                     self.log.info(f"and brought glory to BlightVeil.")
                     self.sounds.play_kill_sound()
@@ -605,18 +614,11 @@ class LogParser():
         elif self.death_total == 0:
             kd_value = "∞"
         else:
-            kd_value = self.kill_total / self.death_total
-
-        if hasattr(self.gui, "update_kd"):
-            self.gui.update_kd(kd_value)
-        else:
-            kd_label = getattr(self.gui, 'kd_ratio_label', None)
-            if kd_label:
-                if isinstance(kd_value, (int, float)):
-                    kd_display = f"{kd_value:.2f}"
-                else:
-                    kd_display = str(kd_value)
-                kd_label.config(text=kd_display, fg="#FFD700")
+            kd = self.kill_total / self.death_total
+            kd_display = f"{kd:.2f}"
+        # Update the KD label in the GUI
+        if hasattr(self.gui, 'kd_ratio_label'):
+            self.gui.kd_ratio_label.config(text=f"K/D Ratio: {kd_display}", fg="#FFD700")
 
     def handle_player_death(self) -> None:
         """Handle KDR when user dies."""
