@@ -31,6 +31,27 @@ class LogParser():
         self.max_killstreak = 0
         self.kill_total = 0
         self.death_total = 0
+        self.environment_killer_markers = (
+            "npc",
+            "ai",
+            "turret",
+            "sentinel",
+            "security",
+            "marine",
+            "guard",
+            "pirate",
+            "outlaw",
+            "lawman",
+            "vanduul",
+            "xeno",
+            "scavenger",
+            "crew",
+            "warden",
+            "mission",
+            "mercenary",
+            "bounty",
+        )
+        self.collision_markers = ("collision", "crash", "impact")
         
         self.global_ship_list = [
             'DRAK', 'ORIG', 'AEGS', 'ANVL', 'CRUS', 'BANU', 'MISC',
@@ -210,18 +231,36 @@ class LogParser():
                 # Log a message for the current user's death
                 elif kill_result["result"] == "killed" or kill_result["result"] == "suicide":
                     self.curr_killstreak = 0
-                    self.gui.curr_killstreak_label.config(text=f"Current Killstreak: {self.curr_killstreak}", fg="yellow")
+                    streak_label = getattr(self.gui, 'curr_killstreak_label', None)
+                    if streak_label:
+                        streak_label.config(text=str(self.curr_killstreak), fg="#FFA500")
                     self.death_total += 1
-                    self.gui.session_deaths_label.config(text=f"Total Session Deaths: {self.death_total}", fg="red")
+                    death_label = getattr(self.gui, 'session_deaths_label', None)
+                    if death_label:
+                        death_label.config(text=str(self.death_total), fg="#f44747")
                     self.log.info("You have fallen in the service of BlightVeil.")
                     if kill_result["result"] == "killed":
                         killer_name = kill_result["data"]["killer"]
                         weapon_name = kill_result["data"].get("weapon")
+                        death_context = self._categorize_player_death(killer_name, weapon_name, line)
                         weapon_text = weapon_name if weapon_name else "Unknown weapon"
-                        death_message = f"{killer_name} killed you using {weapon_text}"
+                        if death_context == "collision":
+                            death_message = "Collision"
+                        elif death_context == "environment":
+                            death_message = "NPC/Game Environment"
+                        else:
+                            death_message = f"{killer_name} killed you using {weapon_text}"
                         self.log.info(death_message)
 
-                        self.gui.log_mode_kill(self.game_mode, event_time, death_message, "death")
+                        self.gui.log_mode_kill(
+                            self.game_mode,
+                            event_time,
+                            death_message,
+                            "death",
+                            killer=killer_name,
+                            victim=kill_result["data"].get("victim"),
+                            context=death_context,
+                        )
                     else:
                         suicide_weapon = kill_result["data"].get("weapon")
                         if suicide_weapon:
@@ -229,7 +268,15 @@ class LogParser():
                         suicide_description = "You died (self-inflicted)"
                         if suicide_weapon:
                             suicide_description += f" with {suicide_weapon}"
-                        self.gui.log_mode_kill(self.game_mode, event_time, suicide_description, "suicide")
+                        self.gui.log_mode_kill(
+                            self.game_mode,
+                            event_time,
+                            suicide_description,
+                            "suicide",
+                            killer=kill_result["data"].get("killer"),
+                            victim=kill_result["data"].get("victim"),
+                            context="suicide",
+                        )
                     if self.sounds:
                         self.sounds.play_death_sound()
                     # Send death-event to the server via heartbeat
@@ -245,9 +292,15 @@ class LogParser():
                     if self.curr_killstreak > self.max_killstreak:
                         self.max_killstreak = self.curr_killstreak
                     self.kill_total += 1
-                    self.gui.curr_killstreak_label.config(text=f"Current Killstreak: {self.curr_killstreak}", fg="#04B431")
-                    self.gui.max_killstreak_label.config(text=f"Max Killstreak: {self.max_killstreak}", fg="#04B431")
-                    self.gui.session_kills_label.config(text=f"Total Session Kills: {self.kill_total}", fg="#04B431")
+                    streak_label = getattr(self.gui, 'curr_killstreak_label', None)
+                    if streak_label:
+                        streak_label.config(text=str(self.curr_killstreak), fg="#FFA500")
+                    max_label = getattr(self.gui, 'max_killstreak_label', None)
+                    if max_label:
+                        max_label.config(text=str(self.max_killstreak), fg="#00FF7F")
+                    kill_label = getattr(self.gui, 'session_kills_label', None)
+                    if kill_label:
+                        kill_label.config(text=str(self.kill_total), fg="#04B431")
                     self.log.success(f"You have killed {kill_result['data']['victim']},")
                     self.log.info(f"and brought glory to BlightVeil.")
                     self.sounds.play_kill_sound()
@@ -260,7 +313,15 @@ class LogParser():
                     description = f"You killed {kill_result['data']['victim']}"
                     if weapon_name:
                         description += f" with {weapon_name}"
-                    self.gui.log_mode_kill(self.game_mode, event_time, description, "kill")
+                    self.gui.log_mode_kill(
+                        self.game_mode,
+                        event_time,
+                        description,
+                        "kill",
+                        killer=kill_result["data"].get("player"),
+                        victim=kill_result["data"].get("victim"),
+                        context="pvp",
+                    )
 
                     if self.game_mode == "SC_Default":
                         self.bounty_tracker.handle_kill(
@@ -354,7 +415,26 @@ class LogParser():
                 self.log.info("Self-destruct detected in Squadron Battle, ignoring kill!")
                 return False
         return True
-    
+
+    def _categorize_player_death(self, killer_name, weapon_name, raw_line):
+        """Categorize the player's death to highlight PvP interactions."""
+        normalized_weapon = (weapon_name or "").lower()
+        raw_lower = raw_line.lower() if isinstance(raw_line, str) else ""
+
+        if any(marker in normalized_weapon for marker in self.collision_markers):
+            return "collision"
+        if any(keyword in raw_lower for keyword in ("damage type 'collision", "damage type 'vehiclecollision", "damage type 'impact")):
+            return "collision"
+
+        normalized_killer = (killer_name or "").strip().lower()
+        if not normalized_killer or normalized_killer in {"unknown", "environment"}:
+            return "environment"
+
+        if any(marker in normalized_killer for marker in self.environment_killer_markers):
+            return "environment"
+
+        return "pvp"
+
     def get_sc_data(self, data_type:str, data_id:str) -> str:
         """Get the human readable string from the parsed log value."""
         try:
@@ -514,8 +594,9 @@ class LogParser():
             kd = self.kill_total / self.death_total
             kd_display = f"{kd:.2f}"
         # Update the KD label in the GUI
-        if hasattr(self.gui, 'kd_ratio_label'):
-            self.gui.kd_ratio_label.config(text=f"KD Ratio: {kd_display}", fg="#00FFFF")
+        kd_label = getattr(self.gui, 'kd_ratio_label', None)
+        if kd_label:
+            kd_label.config(text=kd_display, fg="#FFD700")
 
     def handle_player_death(self) -> None:
         """Handle KDR when user dies."""
