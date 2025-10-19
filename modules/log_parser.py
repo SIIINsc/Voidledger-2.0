@@ -231,13 +231,9 @@ class LogParser():
                 # Log a message for the current user's death
                 elif kill_result["result"] == "killed" or kill_result["result"] == "suicide":
                     self.curr_killstreak = 0
-                    streak_label = getattr(self.gui, 'curr_killstreak_label', None)
-                    if streak_label:
-                        streak_label.config(text=str(self.curr_killstreak), fg="#FFA500")
+                    self.gui.curr_killstreak_label.config(text=f"Kill Streak: {self.curr_killstreak}", fg="#FFA500")
                     self.death_total += 1
-                    death_label = getattr(self.gui, 'session_deaths_label', None)
-                    if death_label:
-                        death_label.config(text=str(self.death_total), fg="#f44747")
+                    self.gui.session_deaths_label.config(text=f"Session Deaths: {self.death_total}", fg="#f44747")
                     self.log.info("You have fallen in the service of BlightVeil.")
                     if kill_result["result"] == "killed":
                         killer_name = kill_result["data"]["killer"]
@@ -292,15 +288,9 @@ class LogParser():
                     if self.curr_killstreak > self.max_killstreak:
                         self.max_killstreak = self.curr_killstreak
                     self.kill_total += 1
-                    streak_label = getattr(self.gui, 'curr_killstreak_label', None)
-                    if streak_label:
-                        streak_label.config(text=str(self.curr_killstreak), fg="#FFA500")
-                    max_label = getattr(self.gui, 'max_killstreak_label', None)
-                    if max_label:
-                        max_label.config(text=str(self.max_killstreak), fg="#00FF7F")
-                    kill_label = getattr(self.gui, 'session_kills_label', None)
-                    if kill_label:
-                        kill_label.config(text=str(self.kill_total), fg="#04B431")
+                    self.gui.curr_killstreak_label.config(text=f"Kill Streak: {self.curr_killstreak}", fg="#FFA500")
+                    self.gui.max_killstreak_label.config(text=f"Max Kill Streak: {self.max_killstreak}", fg="#00FF7F")
+                    self.gui.session_kills_label.config(text=f"Total Session Kills: {self.kill_total}", fg="#04B431")
                     self.log.success(f"You have killed {kill_result['data']['victim']},")
                     self.log.info(f"and brought glory to BlightVeil.")
                     self.sounds.play_kill_sound()
@@ -594,9 +584,8 @@ class LogParser():
             kd = self.kill_total / self.death_total
             kd_display = f"{kd:.2f}"
         # Update the KD label in the GUI
-        kd_label = getattr(self.gui, 'kd_ratio_label', None)
-        if kd_label:
-            kd_label.config(text=kd_display, fg="#FFD700")
+        if hasattr(self.gui, 'kd_ratio_label'):
+            self.gui.kd_ratio_label.config(text=f"K/D Ratio: {kd_display}", fg="#FFD700")
 
     def handle_player_death(self) -> None:
         """Handle KDR when user dies."""
