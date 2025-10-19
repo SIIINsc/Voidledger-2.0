@@ -72,7 +72,7 @@ class GUI():
         self._pending_icon_warnings = []
         self._manual_stat_state = {"kills": 0, "deaths": 0, "curr_streak": 0, "max_streak": 0}
         self.colors = {'bg_dark':'#1e1e1e','bg_mid':'#252526','bg_light':'#333333','text':'#cccccc',
-                       'text_dark':'#D6D6D6','accent':'#007acc','button':'#007acc',
+                       'text_dark':'#B5B5B5','accent':'#007acc','button':'#007acc',
                        'submit_button':'#4CAF50','error':'#f44747','gold':'#d4af37'}
         self.blightveil_theme = {
             'title': '#A855F7',
@@ -496,38 +496,16 @@ class GUI():
         if self.log:
             self.log.info(f"Main Log, Volume set to {normalized:.2f}")
     def update_vehicle_status(self, text):
-        label = getattr(self, 'vehicle_status_label', None)
-        if label and label.winfo_exists():
-            label.config(text=text, fg="#B0B0B0")
-
-    def update_kills(self, count):
-        label = getattr(self, 'session_kills_label', None)
-        if label and label.winfo_exists():
-            label.config(text=str(count), fg="#04B431")
+        if hasattr(self, 'vehicle_status_label') and self.vehicle_status_label.winfo_exists():
+            self.vehicle_status_label.config(text=f"Current Vehicle: {text}", fg="#B0B0B0")
 
     def update_deaths(self, count):
-        label = getattr(self, 'session_deaths_label', None)
-        if label and label.winfo_exists():
-            label.config(text=str(count), fg="#f44747")
-
-    def update_current_streak(self, count):
-        label = getattr(self, 'curr_killstreak_label', None)
-        if label and label.winfo_exists():
-            label.config(text=str(count), fg="#FFA500")
-
-    def update_max_streak(self, count):
-        label = getattr(self, 'max_killstreak_label', None)
-        if label and label.winfo_exists():
-            label.config(text=str(count), fg="#00FF7F")
+        if hasattr(self, 'session_deaths_label') and self.session_deaths_label.winfo_exists():
+            self.session_deaths_label.config(text=f"Session Deaths: {count}", fg="#f44747")
 
     def update_kd(self, ratio):
-        label = getattr(self, 'kd_ratio_label', None)
-        if label and label.winfo_exists():
-            if isinstance(ratio, (int, float)):
-                display_value = f"{ratio:.2f}"
-            else:
-                display_value = str(ratio)
-            label.config(text=display_value, fg="#FFD700")
+        if hasattr(self, 'kd_ratio_label') and self.kd_ratio_label.winfo_exists():
+            self.kd_ratio_label.config(text=f"K/D Ratio: {ratio:.2f}", fg="#FFD700")
 
     def _reset_pvp_summary_data(self):
         self.pvp_summary_data = {mode: {"kills": {}, "deaths": {}} for mode in self.mode_display_names}
@@ -607,9 +585,9 @@ class GUI():
 
             kills_label = tk.Label(
                 section_frame,
-                text="You killed:",
+                text="You killed",
                 font=("Segoe UI", 9, "bold"),
-                fg=self.colors['text_dark'],
+                fg=self.colors['submit_button'],
                 bg=self.colors['bg_dark'],
             )
             kills_label.pack(anchor="w", pady=(6, 0))
@@ -619,9 +597,9 @@ class GUI():
 
             deaths_label = tk.Label(
                 section_frame,
-                text="Killed you:",
+                text="Killed you",
                 font=("Segoe UI", 9, "bold"),
-                fg=self.colors['text_dark'],
+                fg=self.colors['error'],
                 bg=self.colors['bg_dark'],
             )
             deaths_label.pack(anchor="w", pady=(4, 0))
@@ -1103,83 +1081,59 @@ class GUI():
         for idx in range(5):
             stats_inner.grid_columnconfigure(idx, weight=1)
 
-        def build_stat_display(parent, column, label_text, initial_value, value_color):
-            container = tk.Frame(parent, bg=self.colors['bg_mid'])
-            container.grid(row=0, column=column, sticky="w", padx=4)
-            tk.Label(
-                container,
-                text=label_text,
-                font=stat_font,
-                bg=self.colors['bg_mid'],
-                fg=self.colors['text_dark'],
-            ).pack(side=tk.LEFT)
-            value_label = tk.Label(
-                container,
-                text=initial_value,
-                font=stat_font,
-                bg=self.colors['bg_mid'],
-                fg=value_color,
-            )
-            value_label.pack(side=tk.LEFT)
-            return value_label
-
-        self.session_kills_label = build_stat_display(
+        self.session_kills_label = tk.Label(
             stats_inner,
-            0,
-            "Total Session Kills:",
-            "0",
-            "#04B431",
-        )
-
-        self.session_deaths_label = build_stat_display(
-            stats_inner,
-            1,
-            "Total Session Deaths:",
-            "0",
-            "#f44747",
-        )
-
-        self.kd_ratio_label = build_stat_display(
-            stats_inner,
-            2,
-            "K/D Ratio:",
-            "--",
-            "#FFD700",
-        )
-
-        self.curr_killstreak_label = build_stat_display(
-            stats_inner,
-            3,
-            "Current Kill Streak:",
-            "0",
-            "#FFA500",
-        )
-
-        self.max_killstreak_label = build_stat_display(
-            stats_inner,
-            4,
-            "Max Kill Streak:",
-            "0",
-            "#00FF7F",
-        )
-
-        vehicle_container = tk.Frame(stats_inner, bg=self.colors['bg_mid'])
-        vehicle_container.grid(row=1, column=0, columnspan=5, sticky="w", padx=4, pady=(6, 0))
-        tk.Label(
-            vehicle_container,
-            text="Current Vehicle:",
-            font=("Segoe UI", 9, "italic"),
+            text="Total Session Kills: 0",
+            font=stat_font,
             bg=self.colors['bg_mid'],
-            fg=self.colors['text_dark'],
-        ).pack(side=tk.LEFT)
+            fg="#04B431",
+        )
+        self.session_kills_label.grid(row=0, column=0, sticky="w", padx=4)
+
+        self.session_deaths_label = tk.Label(
+            stats_inner,
+            text="Session Deaths: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#f44747",
+        )
+        self.session_deaths_label.grid(row=0, column=1, sticky="w", padx=4)
+
+        self.kd_ratio_label = tk.Label(
+            stats_inner,
+            text="K/D Ratio: --",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#FFD700",
+        )
+        self.kd_ratio_label.grid(row=0, column=2, sticky="w", padx=4)
+
+        self.curr_killstreak_label = tk.Label(
+            stats_inner,
+            text="Kill Streak: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#FFA500",
+        )
+        self.curr_killstreak_label.grid(row=0, column=3, sticky="w", padx=4)
+
+        self.max_killstreak_label = tk.Label(
+            stats_inner,
+            text="Max Kill Streak: 0",
+            font=stat_font,
+            bg=self.colors['bg_mid'],
+            fg="#00FF7F",
+        )
+        self.max_killstreak_label.grid(row=0, column=4, sticky="w", padx=4)
+
         self.vehicle_status_label = tk.Label(
-            vehicle_container,
-            text="Inactive",
+            stats_inner,
+            text="Current Vehicle: Inactive",
             font=("Segoe UI", 9, "italic"),
             bg=self.colors['bg_mid'],
             fg="#B0B0B0",
         )
-        self.vehicle_status_label.pack(side=tk.LEFT)
+        self.vehicle_status_label.grid(row=1, column=0, columnspan=5, sticky="w", padx=4, pady=(6, 0))
 
         self._initialize_star_citizen_summary_ui(star_citizen_frame)
 
