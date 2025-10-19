@@ -1128,7 +1128,7 @@ class GUI():
         api_frame = tk.Frame(features_frame, bg=self.colors['bg_dark'])
         api_frame.pack(fill=tk.X)
         tk.Label(api_frame, text="BlightVeil Servitor | Insert key →", font=("Segoe UI", 9), bg=self.colors['bg_dark'], fg=self.colors['text_dark']).pack(side=tk.LEFT, padx=(0, 5))
-        self.key_entry = tk.Entry(api_frame, font=("Segoe UI", 9), width=45, bg=self.colors['bg_light'], fg=self.colors['text'], relief=tk.FLAT, insertbackground=self.colors['text'])
+        self.key_entry = tk.Entry(api_frame, font=("Segoe UI", 9), width=34, bg=self.colors['bg_light'], fg=self.colors['text'], relief=tk.FLAT, insertbackground=self.colors['text'])
         self.key_entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
         tk.Button(api_frame, text="Load Key", command=lambda: self.api.load_activate_key(), bg=self.colors['button'], fg='#FFFFFF', relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=(5, 0))
 
@@ -1213,7 +1213,7 @@ class GUI():
         bottom_frame.pack(fill=tk.X)
         button_style = {'relief': tk.FLAT, 'font': ("Segoe UI", 9, "bold"), 'fg': '#FFFFFF'}
         tk.Button(bottom_frame, text="Commander Mode", command=lambda: self.cm.setup_commander_mode() if self.cm else None, bg=self.colors['button'], **button_style).pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=(0, 5))
-        self.anonymize_button = tk.Button(bottom_frame, text="Anonymity Off", command=self.toggle_anonymize, **button_style, bg=self.colors['bg_light'], width=12); self.anonymize_button.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=(5, 0))
+        self.anonymize_button = tk.Button(bottom_frame, text="Anonymity Off", command=self.toggle_anonymize, **button_style, bg=self.colors['bg_light'], width=9); self.anonymize_button.pack(side=tk.LEFT, expand=True, fill=tk.BOTH, padx=(5, 0))
 
         footer_frame = tk.Frame(main_frame, bg=self.colors['bg_dark'])
         footer_frame.pack(fill=tk.X, pady=(5, 0))
@@ -1221,7 +1221,7 @@ class GUI():
 
         controls_frame = tk.Frame(footer_frame, bg=self.colors['bg_dark'])
         controls_frame.pack(side=tk.RIGHT)
-        self.debug_button = tk.Button(controls_frame, text="Debug Off", command=self.toggle_debug, **button_style, bg=self.colors['bg_light'], width=12)
+        self.debug_button = tk.Button(controls_frame, text="Debug Off", command=self.toggle_debug, **button_style, bg=self.colors['bg_light'], width=9)
         self.debug_button.pack(side=tk.LEFT, padx=(0, 8), pady=(5, 0))
 
         volume_frame = tk.Frame(controls_frame, bg=self.colors['bg_dark'])
@@ -1230,7 +1230,7 @@ class GUI():
             volume_frame,
             text="🔊",
             command=self.toggle_mute,
-            width=3,
+            width=2,
             bg=self.colors['bg_light'],
             fg=self.colors['text'],
             relief=tk.FLAT,
@@ -1249,7 +1249,7 @@ class GUI():
             relief=tk.FLAT,
             sliderrelief=tk.FLAT,
             showvalue=0,
-            length=80,
+            length=60,
             state=tk.DISABLED,
         )
         self.volume_slider.pack(side=tk.LEFT)
@@ -1264,3 +1264,10 @@ class GUI():
         self._update_sound_controls()
 
         Thread(target=self._load_and_populate_mappings, daemon=True).start()
+
+        self.app.update_idletasks()
+        current_width = self.app.winfo_width()
+        current_height = self.app.winfo_height()
+        if current_width > 0 and current_height > 0:
+            reduced_width = max(600, int(current_width * 0.75))
+            self.app.geometry(f"{reduced_width}x{current_height}")
