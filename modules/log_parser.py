@@ -278,7 +278,6 @@ class LogParser():
                     # Send death-event to the server via heartbeat
                     self.cm.post_heartbeat_event(kill_result["data"]["victim"], kill_result["data"]["zone"], None)
                     self.destroy_player_zone()
-                    self.update_kd_ratio()
                     if kill_result["result"] == "killed" and self.game_mode == "EA_FreeFlight":
                         death_result = self.parse_death_line(line, self.rsi_handle["current"])
                         self.api.post_kill_event(death_result, "reportACKill")
@@ -295,7 +294,6 @@ class LogParser():
                     self.log.info(f"and brought glory to BlightVeil.")
                     self.sounds.play_kill_sound()
                     self.api.post_kill_event(kill_result, "reportKill")
-                    self.update_kd_ratio()
 
                     weapon_name = kill_result["data"].get("weapon")
                     if weapon_name:
@@ -572,14 +570,49 @@ class LogParser():
         for line in lines:
             if -1 != line.find(acct_kw):
                 return line.split(' ')[11]
-                
+
+    def _sync_gui_session_stats(self) -> None:
+        """Refresh the GUI's session stat header to match tracked totals."""
+        if not getattr(self, "gui", None):
+            return
+
+        if hasattr(self.gui, "update_kills"):
+            self.gui.update_kills(self.kill_total)
+        else:
+            kill_label = getattr(self.gui, 'session_kills_label', None)
+            if kill_label:
+                kill_label.config(text=str(self.kill_total), fg="#04B431")
+
+        if hasattr(self.gui, "update_deaths"):
+            self.gui.update_deaths(self.death_total)
+        else:
+            death_label = getattr(self.gui, 'session_deaths_label', None)
+            if death_label:
+                death_label.config(text=str(self.death_total), fg="#f44747")
+
+        if hasattr(self.gui, "update_current_streak"):
+            self.gui.update_current_streak(self.curr_killstreak)
+        else:
+            streak_label = getattr(self.gui, 'curr_killstreak_label', None)
+            if streak_label:
+                streak_label.config(text=str(self.curr_killstreak), fg="#FFA500")
+
+        if hasattr(self.gui, "update_max_streak"):
+            self.gui.update_max_streak(self.max_killstreak)
+        else:
+            max_label = getattr(self.gui, 'max_killstreak_label', None)
+            if max_label:
+                max_label.config(text=str(self.max_killstreak), fg="#00FF7F")
+
     def update_kd_ratio(self) -> None:
         """Update KDR."""
-        self.log.debug(f"update_kd_ratio(): Kills={self.kill_total}, Deaths={self.death_total}")
+        if self.log:
+            self.log.debug(f"update_kd_ratio(): Kills={self.kill_total}, Deaths={self.death_total}")
+
         if self.kill_total == 0 and self.death_total == 0:
-            kd_display = "--"
+            kd_value = "--"
         elif self.death_total == 0:
-            kd_display = "∞"
+            kd_value = "∞"
         else:
             kd = self.kill_total / self.death_total
             kd_display = f"{kd:.2f}"
@@ -591,7 +624,7 @@ class LogParser():
         """Handle KDR when user dies."""
         self.curr_killstreak = 0
         self.death_total += 1
-        # ... other updates ...
+        self._sync_gui_session_stats()
         self.update_kd_ratio()
 
     def handle_player_kill(self) -> None:
@@ -600,7 +633,7 @@ class LogParser():
         if self.curr_killstreak > self.max_killstreak:
             self.max_killstreak = self.curr_killstreak
         self.kill_total += 1
-        # ... other updates ...
+        self._sync_gui_session_stats()
         self.update_kd_ratio()
 
     def set_logger(self, logger) -> None:

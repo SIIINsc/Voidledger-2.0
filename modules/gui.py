@@ -47,6 +47,7 @@ class GUI():
         self.key_entry=None; self.api_status_label=None; self.volume_slider=None
         self.session_kills_label=None; self.session_deaths_label=None; self.kd_ratio_label=None
         self.curr_killstreak_label=None; self.max_killstreak_label=None
+        self.log_parser=None
         self.killer_handle_entry=None
         self.killer_ship_combo=None
         self.killer_weapon_combo=None
@@ -69,6 +70,7 @@ class GUI():
         self._updating_volume_slider = False
         self._pending_volume_percent = None
         self._pending_icon_warnings = []
+        self._manual_stat_state = {"kills": 0, "deaths": 0, "curr_streak": 0, "max_streak": 0}
         self.colors = {'bg_dark':'#1e1e1e','bg_mid':'#252526','bg_light':'#333333','text':'#cccccc',
                        'text_dark':'#888888','accent':'#007acc','button':'#007acc',
                        'submit_button':'#4CAF50','error':'#f44747','gold':'#d4af37'}
@@ -835,6 +837,43 @@ class GUI():
         self.killer_weapon_combo['values'] = weapon_game_names
         self.log.success("Mappings loaded successfully. Star citizen Must be open to continue...")
 
+    def _apply_injected_stat_update(self, outcome):
+        parser = getattr(self, "log_parser", None)
+        if parser:
+            if outcome == "kill":
+                parser.handle_player_kill()
+            elif outcome == "death":
+                parser.handle_player_death()
+            return
+
+        state = self._manual_stat_state
+        if outcome == "kill":
+            state["kills"] += 1
+            state["curr_streak"] += 1
+            if state["curr_streak"] > state["max_streak"]:
+                state["max_streak"] = state["curr_streak"]
+        elif outcome == "death":
+            state["deaths"] += 1
+            state["curr_streak"] = 0
+        else:
+            return
+
+        self.update_kills(state["kills"])
+        self.update_deaths(state["deaths"])
+        self.update_current_streak(state["curr_streak"])
+        self.update_max_streak(state["max_streak"])
+
+        kills = state["kills"]
+        deaths = state["deaths"]
+        if kills == 0 and deaths == 0:
+            kd_value = "--"
+        elif deaths == 0:
+            kd_value = "∞"
+        else:
+            kd_value = kills / deaths
+
+        self.update_kd(kd_value)
+
     def handle_kill_injection(self):
         try:
             killer_h = self.killer_handle_entry.get()
@@ -913,6 +952,7 @@ class GUI():
                     )
                     if self.sounds:
                         self.sounds.play_death_sound()
+                    self._apply_injected_stat_update("death")
                 else:
                     self.log_mode_kill(
                         game_mode_for_server,
@@ -925,6 +965,7 @@ class GUI():
                     )
                     if self.sounds:
                         self.sounds.play_kill_sound()
+                    self._apply_injected_stat_update("kill")
             else:
                 if self.log:
                     self.log.info(
