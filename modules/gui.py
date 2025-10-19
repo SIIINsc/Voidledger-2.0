@@ -72,7 +72,7 @@ class GUI():
         self._pending_icon_warnings = []
         self._manual_stat_state = {"kills": 0, "deaths": 0, "curr_streak": 0, "max_streak": 0}
         self.colors = {'bg_dark':'#1e1e1e','bg_mid':'#252526','bg_light':'#333333','text':'#cccccc',
-                       'text_dark':'#888888','accent':'#007acc','button':'#007acc',
+                       'text_dark':'#B5B5B5','accent':'#007acc','button':'#007acc',
                        'submit_button':'#4CAF50','error':'#f44747','gold':'#d4af37'}
         self.blightveil_theme = {
             'title': '#A855F7',
