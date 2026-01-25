@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Star Citizen Space Combat Communication Protocol</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-main">
+      <div>
+        <p class="eyebrow">Star Citizen Space Combat Communication Protocol</p>
+        <h1>Combat Comms Protocol</h1>
+        <p class="subtitle">Viewer mode is default. Admin mode enables inline edits. Admin unlock is convenience-only for a static offline file.</p>
+      </div>
+      <div class="header-actions">
+        <button id="adminToggle" class="ghost">Admin</button>
+        <div class="status-pill" id="adminStatus">Viewer</div>
+      </div>
+    </div>
+    <div class="header-tools">
+      <div class="search-wrap">
+        <label for="search" class="sr-only">Search</label>
+        <input id="search" type="search" placeholder="Search call names or keywords" autocomplete="off" />
+      </div>
+      <div class="tool-group">
+        <button id="expandAll">Expand all</button>
+        <button id="collapseAll" class="ghost">Collapse all</button>
+      </div>
+      <div class="tool-group">
+        <button id="saveData">Save</button>
+        <button id="resetData" class="ghost">Reset to default</button>
+        <button id="exportData" class="ghost">Export JSON</button>
+        <label class="ghost file-button">
+          Import JSON
+          <input id="importData" type="file" accept="application/json" />
+        </label>
+      </div>
+      <label class="checkbox" id="nameEditWrap">
+        <input type="checkbox" id="nameEdit" />
+        Enable call name editing
+      </label>
+    </div>
+  </header>
+
+  <nav class="category-nav" id="categoryNav"></nav>
+
+  <main>
+    <section class="panel" id="how-to-run">
+      <h2>How to run</h2>
+      <p>Open <strong>index.html</strong> directly in your browser. No server or internet connection is required.</p>
+      <p class="notice">Admin mode is a convenience-only lock for a static offline file. It prevents accidental edits but is not secure.</p>
+    </section>
+
+    <section class="panel" id="rules">
+      <h2>Rules</h2>
+      <ul class="rules-list">
+        <li>One call = one state.</li>
+        <li>No narration.</li>
+        <li>Silence is correct.</li>
+        <li>Same breath rule (3–5 seconds).</li>
+        <li>Same breath → name optional.</li>
+        <li>Time passes → name required.</li>
+        <li>Category change → name required.</li>
+        <li>Personal state uses speaker name; shared truth never uses speaker name.</li>
+        <li>Remove “Push” entirely (it does not exist).</li>
+        <li><strong>Regroup on:</strong> re-center on anchor, can remain engaged or re-engage quickly.</li>
+        <li><strong>Reset:</strong> disengage and reset fight state (break contact).</li>
+        <li><strong>Red (PERSONAL):</strong> critical health, not necessarily about to die, can be safe but fragile.</li>
+      </ul>
+    </section>
+
+    <section class="panel" id="flow-diagrams">
+      <h2>Flow diagrams</h2>
+      <div class="flow-diagram">
+        <h3>Target cycle</h3>
+        <div class="flow-row">
+          <span class="node">Target</span>
+          <span class="arrow">→</span>
+          <span class="node">Looking / Seen</span>
+          <span class="arrow">→</span>
+          <span class="node">Merging</span>
+          <span class="arrow">→</span>
+          <span class="node">Effective / Not effective</span>
+          <span class="arrow">→</span>
+          <span class="node">Red (TARGET)</span>
+          <span class="arrow">→</span>
+          <span class="node">Splash</span>
+          <span class="arrow">OR</span>
+          <span class="node">Target out</span>
+          <span class="arrow">→</span>
+          <span class="node">new Target</span>
+        </div>
+      </div>
+      <div class="flow-diagram">
+        <h3>Regroup cycle</h3>
+        <div class="flow-row">
+          <span class="node">Regroup on</span>
+          <span class="arrow">→</span>
+          <span class="node">Distance (optional)</span>
+          <span class="arrow">→</span>
+          <span class="node">Ready</span>
+        </div>
+      </div>
+      <div class="flow-diagram">
+        <h3>Threat interrupt</h3>
+        <div class="flow-row">
+          <span class="node">Aggro</span>
+          <span class="arrow">→</span>
+          <span class="node">Evasive</span>
+          <span class="arrow">→</span>
+          <span class="node">Low boost</span>
+          <span class="arrow">→</span>
+          <span class="node">Clear</span>
+          <span class="arrow">(critical state: Red (PERSONAL))</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" id="categories">
+      <h2>Protocol call-outs</h2>
+      <div id="categorySections"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Viewer/Admin mode is convenience-only because this is a static offline site. Protect edits by keeping the file private.</p>
+  </footer>
+
+  <dialog id="adminDialog">
+    <form method="dialog" class="dialog-form">
+      <h3>Admin unlock</h3>
+      <p>Enter the admin password to enable editing. This is not a security feature; it only prevents accidental edits.</p>
+      <label>
+        Password
+        <input id="adminPassword" type="password" autocomplete="current-password" />
+      </label>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">Cancel</button>
+        <button id="adminSubmit" value="default">Unlock</button>
+      </div>
+      <p class="hint">Default password: <strong>starlance</strong>. Change the hash in <code>app.js</code> if needed.</p>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

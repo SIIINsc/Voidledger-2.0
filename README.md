@@ -16,3 +16,9 @@ Download the .exe From the Releases Page, or run the python main file from conso
 
 
 *SIC SEMPER TYRANNIS ET CORVIS*
+
+---
+
+### Static comms protocol note
+
+The `star-citizen-protocol` folder contains a static, offline HTML page for the Star Citizen Space Combat Communication Protocol. Admin mode is a convenience-only lock to prevent accidental edits. It is not a security feature because the site is static and runs locally.
